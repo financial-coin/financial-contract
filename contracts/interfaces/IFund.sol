@@ -31,13 +31,10 @@ interface IFund is IERC20 {
     // 查询基金属性
     function getProperty() external view returns (Property memory property);
 
-    // 查询指定账户的基金价值(按购买的代币计算)和份额
+    // 查询指定账户的份额、基金价值和成本
     function getAccount(
         address owner
-    ) external view returns (uint value, uint shares);
-
-    // 查询自购买后获得的累计收益（减去已领取部分）
-    function getProfit(address owner) external view returns (uint profit);
+    ) external view returns (uint shares, uint value, uint cost);
 
     // 铸造基金给指定用户，返回份额数量，代币需要提前转给合约
     function mint(
@@ -51,13 +48,6 @@ interface IFund is IERC20 {
         address to,
         uint shares,
         bytes calldata data
-    ) external returns (uint amount);
-
-    // 领取基金当前累计收益，返回代币数量
-    function claimProfit(
-        address owner,
-        address to,
-        bytes memory data
     ) external returns (uint amount);
 
     // 更新基金总价值

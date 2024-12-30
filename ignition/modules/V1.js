@@ -14,5 +14,8 @@ module.exports = buildModule("V1", (m) => {
   const fundETH = m.contract("FundETH");
   m.call(entry, "registerFund", [fundETH, "0x"]);
 
-  return { proxy, entry, fundETH };
+  const token = m.contract("TestToken");
+  m.call(token, "mint", [owner, 10n ** 22n]);
+
+  return { proxy, entry, fundETH, token };
 });

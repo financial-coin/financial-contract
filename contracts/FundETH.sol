@@ -11,9 +11,8 @@ contract FundETH is ERC20("Test Fund", "TF"), IFund {
     uint lastBalance;
     mapping(address => uint) lastNetValue;
 
-    
-    function initialize(address entry, bytes memory data) external{
-        require(property.entry==address(0),"fund already initialized!");
+    function initialize(address entry, bytes memory data) external {
+        require(property.entry == address(0), "fund already initialized!");
         property.token = EthToken;
         property.entry = entry;
     }
@@ -27,15 +26,9 @@ contract FundETH is ERC20("Test Fund", "TF"), IFund {
 
     function getAccount(
         address owner
-    ) external view returns (uint value, uint shares) {
+    ) external view returns (uint shares, uint value, uint cost) {
         shares = balanceOf(owner);
         value = (shares * property.value) / totalSupply();
-    }
-
-    function getProfit(address owner) public view returns (uint profit) {
-        return
-            balanceOf(owner) *
-            (property.value / totalSupply() - lastNetValue[owner]);
     }
 
     function mint(
@@ -64,15 +57,6 @@ contract FundETH is ERC20("Test Fund", "TF"), IFund {
         amount = (shares * property.value) / totalSupply();
         lastBalance -= amount;
         _burn(owner, shares);
-        payable(to).transfer(amount);
-    }
-
-    function claimProfit(
-        address owner,
-        address to,
-        bytes memory data
-    ) external returns (uint amount) {
-        amount = getProfit(owner);
         payable(to).transfer(amount);
     }
 
