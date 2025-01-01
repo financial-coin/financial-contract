@@ -26,12 +26,20 @@ module.exports = {
   },
   /**** chain rpc: https://chainlist.org ****/
   networks: {
+    /**** release network ****/
     mainnet: {
+      chainId: 1,
       url: `https://api.zan.top/eth-mainnet`,
       accounts: [PRV_KEY],
     },
+
     /**** test network ****/
+    localhost: {
+      chainId: 31337,
+      url: "http://127.0.0.1:8545",
+    },
     amoy: {
+      chainId: 80002,
       url: "https://rpc-amoy.polygon.technology",
       accounts: [PRV_KEY],
     },

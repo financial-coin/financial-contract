@@ -12,12 +12,13 @@ router.get('/quote', async (ctx) => {
 router.post('/swap', async (ctx) => {
     try {
         ctx.request.socket.setTimeout(60 * 1000);
-        const { owner, token, amountIn, amountOut, signature, approveTranscation } = ctx.request.body;
+        const { owner, token, amountIn, amountOut, deadline, signature, approveTranscation } = ctx.request.body;
         ctx.body = await checkAndSwapETH(
             getAddress(owner),
             getAddress(token),
             getBigInt(amountIn),
             getBigInt(amountOut),
+            getBigInt(deadline),
             Signature.from(signature).serialized,
             Transaction.from(approveTranscation),
         );

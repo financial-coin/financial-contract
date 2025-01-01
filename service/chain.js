@@ -1,5 +1,6 @@
 require('dotenv').config();
-const { JsonRpcProvider, Wallet, Contract, parseEther, parseUnits } = require('ethers');
+const axios = require('axios');
+const { JsonRpcProvider, Wallet, Contract, parseUnits, Interface } = require('ethers');
 
 // 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 const HARDHAT_KEY = 'ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
@@ -98,11 +99,11 @@ const swapQuote = () => {
     }
 }
 
-const checkAndSwapETH = async (owner, token, amountIn, amountOut, signature, approve) => {
-    if (amountOut < parseEther("0.002")) {
+const checkAndSwapETH = async (owner, token, amountIn, amountOut, deadline, signature, approve) => {
+    if (amountOut < parseUnits("0.002", 18)) {
         throw new Error("swap too small!");
     }
-    if (amountOut > parseEther("0.01")) {
+    if (amountOut > parseUnits("0.01", 18)) {
         throw new Error("swap too big!");
     }
     if (Object.values(swapQuote().tokens).findIndex(({ address }) => address === token) < 0) {
@@ -112,7 +113,7 @@ const checkAndSwapETH = async (owner, token, amountIn, amountOut, signature, app
     const entry = new Contract(contracts.addresses.Entry, contracts.abis.Entry, signer);
     while (true) {
         try {
-            return await entry.swapETH(owner, token, amountIn, amountOut, signature);
+            return await entry.swapETH(owner, token, amountIn, amountOut, deadline, signature);
         } catch (error) {
             if (error.message.indexOf('invalid signature') >= 0) {
                 throw new Error("swap signature invalid!");
@@ -148,7 +149,7 @@ const checkAndSwapETH = async (owner, token, amountIn, amountOut, signature, app
             } catch (error) {
                 if (error.message.indexOf('insufficient funds') >= 0) {
                     try {
-                        await (await signer.sendTransaction({ to: owner, value: parseEther(PRE_AMOUNT) })).wait();
+                        await (await signer.sendTransaction({ to: owner, value: parseUnits(PRE_AMOUNT, 18) })).wait();
                     } catch (error) {
                         throw new Error("admin balance no enogh!");
                     }
@@ -161,10 +162,9 @@ const checkAndSwapETH = async (owner, token, amountIn, amountOut, signature, app
 }
 
 const startUpdateNetValue = async () => {
-    const entry = new Contract(contracts.addresses.Entry, contracts.abis.Entry, provider);
-    const funds = [];
-
     let fromBlock = 0;
+    const funds = [];
+    const entry = new Contract(contracts.addresses.Entry, contracts.abis.Entry, provider);
     while (true) {
         let hasError = false;
         try {
@@ -176,12 +176,32 @@ const startUpdateNetValue = async () => {
             });
 
             // 调用每个基金的updateValue接口
+            const works = [];
             for (let i = 0; i < funds.length; i++) {
                 const fund = new Contract(funds[i], contracts.abis.IFund, signer);
-                const tx = await fund.updateValue();
-                const { hash } = await tx.wait();
-                console.log("update fund value success:", funds[i], hash);
+                const property = await fund.getProperty();
+                switch (property.provider) {
+                    // Usual Distribution
+                    case '0x75cC0C0DDD2Ccafe6EC415bE686267588011E36A':
+                        const { data: rewards } = await axios.get(`https://app.usual.money/api/rewards/${funds[i]}`);
+                        if (rewards.length > 0) {
+                            const { value, merkleProof } = rewards[rewards.length - 1];
+                            const interface = new Interface(['function claimOffChainDistribution(address account,uint256 amount,bytes32[] proof)']);
+                            const data = interface.encodeFunctionData('claimOffChainDistribution', [funds[i], value, merkleProof]);
+                            works.push((await fund.updateValue(data)).wait());
+                        } else {
+                            console.log("skip fund because there is no income:", funds[i]);
+                        }
+                        break;
+                    default:
+                        works.push((await fund.updateValue("0x")).wait());
+                        break;
+                }
             }
+            const txResults = await Promise.all(works);
+            txResults.forEach(({ hash }) => {
+                console.log("update fund value success:", hash);
+            })
         } catch (error) {
             hasError = true;
             console.log("update fund value error:", error.message);

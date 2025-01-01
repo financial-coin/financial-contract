@@ -8,57 +8,39 @@ import "./interfaces/IFund.sol";
 contract FundETH is ERC20("Test Fund", "TF"), IFund {
     Property private property;
 
-    uint lastBalance;
-    mapping(address => uint) lastNetValue;
+    modifier onlyEntry() {
+        require(msg.sender == property.entry, "call is not from entry");
+        _;
+    }
 
-    function initialize(address entry, bytes memory data) external {
+    function initialize() external returns (address token) {
         require(property.entry == address(0), "fund already initialized!");
         property.token = EthToken;
-        property.entry = entry;
+        property.entry = msg.sender;
+        return EthToken;
     }
 
-    function getProperty() external view returns (Property memory) {
-        Property memory result = property;
-        result.shares = totalSupply();
-        result.netValue = result.value / result.shares;
-        return result;
-    }
+    function getProperty() external view returns (Property memory) {}
 
     function getAccount(
         address owner
-    ) external view returns (uint shares, uint value, uint cost) {
-        shares = balanceOf(owner);
-        value = (shares * property.value) / totalSupply();
-    }
+    ) external view returns (uint shares, uint value, uint cost) {}
+
+    function getMaxAPR() external view returns (uint) {}
+
+    function setMaxAPR(uint newAPR) external onlyEntry {}
 
     function mint(
-        address to,
-        bytes calldata data
-    ) external payable returns (uint shares) {
-        uint balance = address(this).balance;
-        if (totalSupply() == 0) {
-            property.value = balance;
-            shares = property.value * 10000;
-        } else {
-            uint dValue = balance - lastBalance;
-            shares = (dValue * totalSupply()) / property.value;
-            property.value += (shares * property.value) / totalSupply();
-        }
-        lastBalance = balance;
-        _mint(to, shares);
-    }
+        address to
+    ) external payable onlyEntry returns (uint shares, uint value) {}
 
     function burn(
         address owner,
         address to,
-        uint shares,
-        bytes calldata data
-    ) external returns (uint amount) {
-        amount = (shares * property.value) / totalSupply();
-        lastBalance -= amount;
-        _burn(owner, shares);
-        payable(to).transfer(amount);
-    }
+        uint shares
+    ) external onlyEntry returns (uint amount) {}
 
-    function updateValue() external returns (uint value) {}
+    function updateValue(
+        bytes calldata data
+    ) external payable returns (uint newValue) {}
 }

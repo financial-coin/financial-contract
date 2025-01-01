@@ -2,6 +2,7 @@
 // Learn more about it at https://hardhat.org/ignition
 
 const { buildModule } = require("@nomicfoundation/hardhat-ignition/modules");
+const { network: { config } } = require("hardhat");
 
 module.exports = buildModule("V1", (m) => {
   const owner = m.getAccount(0);
@@ -11,11 +12,9 @@ module.exports = buildModule("V1", (m) => {
   const proxy = m.contract("ERC1967Proxy", [impl, data]);
   const entry = m.contractAt("Entry", proxy);
 
-  const fundETH = m.contract("FundETH");
-  m.call(entry, "registerFund", [fundETH, "0x"]);
+  const fundName = config.chainId === 1 ? "FundUsual" : "FundETH";
+  const fund = m.contract(fundName);
+  m.call(entry, "registerFund", [fund]);
 
-  const token = m.contract("TestToken");
-  m.call(token, "mint", [owner, 10n ** 22n]);
-
-  return { proxy, entry, fundETH, token };
+  return { proxy, entry, fund };
 });

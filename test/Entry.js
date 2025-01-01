@@ -40,18 +40,20 @@ describe("Entry", function () {
     describe("SwapETH", function () {
         const amountIn = 1000;
         const amountOut = 1000;
+        const nonce = 0;
+        const deadline = Math.floor(new Date().getTime() / 1000) + 3600;
 
         describe("Validations", function () {
             it("Should revert if caller is not admin", async function () {
                 const { owner, account1, entry, token } = await loadFixture(deployFixture);
 
-                await expect(entry.connect(account1).swapETH(owner, token, amountIn, amountOut, "0x")).to.be.reverted;
+                await expect(entry.connect(account1).swapETH(owner, token, amountIn, amountOut, deadline, "0x")).to.be.reverted;
             });
 
             it("Should revert with no signature", async function () {
                 const { owner, entry, token } = await loadFixture(deployFixture);
 
-                await expect(entry.swapETH(owner, token, amountIn, amountOut, "0x")).to.be.reverted;
+                await expect(entry.swapETH(owner, token, amountIn, amountOut, deadline, "0x")).to.be.reverted;
             });
 
             it("Shouldn't fail with no signature", async function () {
@@ -65,18 +67,20 @@ describe("Entry", function () {
                         { name: "amountIn", type: "uint256" },
                         { name: "amountOut", type: "uint256" },
                         { name: "nonce", type: "uint256" },
+                        { name: "deadline", type: "uint256" },
                     ]
                 }
                 const value = {
                     owner: owner.address,
                     token: token.target,
-                    amountIn: amountIn,
-                    amountOut: amountOut,
-                    nonce: 0,
+                    amountIn,
+                    amountOut,
+                    nonce,
+                    deadline,
                 }
                 const signature = await owner.signTypedData(domain, types, value);
 
-                await expect(entry.swapETH(owner, token, amountIn, amountOut, signature)).not.to.be.reverted;
+                await expect(entry.swapETH(owner, token, amountIn, amountOut, deadline, signature)).not.to.be.reverted;
             });
         });
 
@@ -92,18 +96,20 @@ describe("Entry", function () {
                         { name: "amountIn", type: "uint256" },
                         { name: "amountOut", type: "uint256" },
                         { name: "nonce", type: "uint256" },
+                        { name: "deadline", type: "uint256" },
                     ]
                 }
                 const value = {
                     owner: owner.address,
                     token: token.target,
-                    amountIn: amountIn,
-                    amountOut: amountOut,
-                    nonce: 0,
+                    amountIn,
+                    amountOut,
+                    nonce,
+                    deadline,
                 }
                 const signature = await owner.signTypedData(domain, types, value);
 
-                await expect(entry.swapETH(owner, token, amountIn, amountOut, signature))
+                await expect(entry.swapETH(owner, token, amountIn, amountOut, deadline, signature))
                     .to.emit(entry, "SwapETH")
                     .withArgs(owner, token, amountIn, amountOut);
             });
