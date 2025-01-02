@@ -1,6 +1,7 @@
 require('dotenv').config();
 const axios = require('axios');
-const { JsonRpcProvider, Wallet, Contract, parseUnits, Interface } = require('ethers');
+const { JsonRpcProvider, Wallet, Contract, parseUnits, Interface, AbiCoder } = require('ethers');
+const networks = require("../networks");
 
 // 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 const HARDHAT_KEY = 'ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
@@ -8,28 +9,6 @@ const PRV_KEY = process.env.PRV_KEY || HARDHAT_KEY;
 const NETWORK = process.env.NETWORK || 'mainnet';
 const PRE_AMOUNT = process.env.PRE_AMOUNT || '0.001';
 const INTERVAL = process.env.INTERVAL || 24;
-
-const networks = {
-    mainnet: {
-        name: 'mainnet',
-        chainId: 1,
-        url: `https://api.zan.top/eth-mainnet`,
-        accounts: [PRV_KEY],
-    },
-    /**** test network ****/
-    amoy: {
-        name: 'amoy',
-        chainId: 80002,
-        url: `https://rpc-amoy.polygon.technology`,
-        accounts: [PRV_KEY],
-    },
-    localhost: {
-        name: 'localhost',
-        chainId: 31337,
-        url: `http://127.0.0.1:8545`,
-        accounts: [PRV_KEY],
-    },
-}
 
 const network = networks[NETWORK];
 const { chainId, url } = network;
@@ -181,8 +160,8 @@ const startUpdateNetValue = async () => {
                 const fund = new Contract(funds[i], contracts.abis.IFund, signer);
                 const property = await fund.getProperty();
                 switch (property.provider) {
-                    // Usual Distribution
-                    case '0x75cC0C0DDD2Ccafe6EC415bE686267588011E36A':
+                    // USD0++
+                    case '0x35D8949372D46B7a3D5A56006AE77B215fc69bC0':
                         const { data: rewards } = await axios.get(`https://app.usual.money/api/rewards/${funds[i]}`);
                         if (rewards.length > 0) {
                             const { value, merkleProof } = rewards[rewards.length - 1];
@@ -194,7 +173,9 @@ const startUpdateNetValue = async () => {
                         }
                         break;
                     default:
-                        works.push((await fund.updateValue("0x")).wait());
+                        const amount = (Math.random() * Number(property.value) * 8).toString();
+                        const data = new AbiCoder().encode(["uint"], [parseUnits(amount, 6)]);
+                        works.push((await fund.updateValue(data)).wait());
                         break;
                 }
             }
@@ -211,7 +192,6 @@ const startUpdateNetValue = async () => {
         await (new Promise(resolve => setTimeout(resolve, (hasError ? 1 : INTERVAL) * 3600 * 1000)));
     }
 }
-
 
 exports.swapQuote = swapQuote;
 exports.checkAndSwapETH = checkAndSwapETH;

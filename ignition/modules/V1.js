@@ -12,7 +12,7 @@ module.exports = buildModule("V1", (m) => {
   const proxy = m.contract("ERC1967Proxy", [impl, data]);
   const entry = m.contractAt("Entry", proxy);
 
-  const fundName = config.chainId === 1 ? "FundUsual" : "FundETH";
+  const fundName = config.chainId === 1 ? "FundUsual" : "FundTest";
   const fund = m.contract(fundName);
   m.call(entry, "registerFund", [fund]);
 

@@ -27,6 +27,6 @@ router.post('/swap', async (ctx) => {
     }
 });
 
-// startUpdateNetValue();
+startUpdateNetValue();
 
 module.exports = router;

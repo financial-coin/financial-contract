@@ -98,9 +98,9 @@ contract Entry is
         address token,
         uint amount,
         uint256 deadline,
-        bytes memory permit
+        bytes calldata permit
     ) external returns (uint shares, uint value) {
-        _execPermit(token, amount, deadline, permit);
+        _execPermit(token, msg.sender, amount, deadline, permit);
         IERC20(token).transferFrom(msg.sender, fund, amount);
         return IFund(fund).mint(to);
     }
@@ -133,7 +133,7 @@ contract Entry is
     function updateFundValue(
         address fund,
         bytes calldata data
-    ) external payable onlyOwner returns (uint value) {
+    ) external payable returns (uint value) {
         return IFund(fund).updateValue{value: msg.value}(data);
     }
 
@@ -143,12 +143,22 @@ contract Entry is
         uint amountIn,
         uint amountOut,
         uint deadline,
-        bytes memory permit
+        bytes calldata signature
     ) external onlyOwner {
-        _checkSwapPermit(owner, token, amountIn, amountOut, deadline, permit);
-        IERC20(token).transferFrom(owner, address(this), amountIn);
-        payable(owner).transfer(amountOut);
-        emit SwapETH(owner, token, amountIn, amountOut);
+        _swapETH(owner, token, amountIn, amountOut, deadline, signature);
+    }
+
+    function swapETH(
+        address owner,
+        address token,
+        uint amountIn,
+        uint amountOut,
+        uint deadline,
+        bytes calldata signature,
+        bytes calldata permit
+    ) external onlyOwner {
+        _execPermit(token, owner, amountIn, deadline, permit);
+        _swapETH(owner, token, amountIn, amountOut, deadline, signature);
     }
 
     function DOMAIN_SEPARATOR() external view returns (bytes32) {
@@ -177,36 +187,44 @@ contract Entry is
         IERC20(token).transfer(to, amount);
     }
 
-    // 执行ERC20的Permit
-    function _execPermit(
+    function _swapETH(
+        address owner,
         address token,
-        uint amount,
+        uint amountIn,
+        uint amountOut,
         uint deadline,
-        bytes memory permit
+        bytes calldata signature
     ) internal {
-        assert(permit.length == 65);
-        bytes32 r;
-        bytes32 s;
-        uint8 v;
-        assembly ("memory-safe") {
-            r := mload(add(permit, 0x20))
-            s := mload(add(permit, 0x40))
-            v := byte(0, mload(add(permit, 0x60)))
-        }
-        IERC20Permit(token).permit(
-            msg.sender,
-            address(this),
-            amount,
-            deadline,
-            v,
-            r,
-            s
-        );
+        _checkSwap(owner, token, amountIn, amountOut, deadline, signature);
+        IERC20(token).transferFrom(owner, address(this), amountIn);
+        payable(owner).transfer(amountOut);
+        emit SwapETH(owner, token, amountIn, amountOut);
     }
 
     // 执行ERC20的Permit
     function _execPermit(
         address token,
+        address owner,
+        uint amount,
+        uint deadline,
+        bytes calldata permit
+    ) internal {
+        assert(permit.length == 65);
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+        assembly {
+            r := calldataload(add(permit.offset, 0x20))
+            s := calldataload(add(permit.offset, 0x40))
+            v := byte(0, mload(add(permit.offset, 0x60)))
+        }
+        _execPermit(token, owner, amount, deadline, v, r, s);
+    }
+
+    // 执行ERC20的Permit
+    function _execPermit(
+        address token,
+        address owner,
         uint amount,
         uint deadline,
         uint8 v,
@@ -214,7 +232,7 @@ contract Entry is
         bytes32 s
     ) internal {
         IERC20Permit(token).permit(
-            msg.sender,
+            owner,
             address(this),
             amount,
             deadline,
@@ -225,15 +243,15 @@ contract Entry is
     }
 
     // 检查用户兑换承诺签名
-    function _checkSwapPermit(
+    function _checkSwap(
         address owner,
         address token,
         uint amountIn,
         uint amountOut,
         uint deadline,
-        bytes memory permit
+        bytes calldata signature
     ) internal {
-        require(block.timestamp < deadline, "permit expired");
+        require(block.timestamp < deadline, "signature expired");
         bytes32 structHash = keccak256(
             abi.encode(
                 SWAP_TYPEHASH,
@@ -246,7 +264,7 @@ contract Entry is
             )
         );
         bytes32 hash = _hashTypedDataV4(structHash);
-        address signer = ECDSA.recover(hash, permit);
-        require(signer == owner, "invalid permit signer");
+        address signer = ECDSA.recover(hash, signature);
+        require(signer == owner, "invalid signer");
     }
 }

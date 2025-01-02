@@ -25,7 +25,7 @@ contract FundUsual is ERC20("Wrapped Usual Fund", "FundUsual"), IFund {
     );
 
     modifier onlyEntry() {
-        require(msg.sender == $.entry, "only entry call");
+        require(msg.sender == $.entry, "only entry can call");
         _;
     }
 
@@ -33,7 +33,7 @@ contract FundUsual is ERC20("Wrapped Usual Fund", "FundUsual"), IFund {
         require($.entry == address(0), "fund already initialized!");
         $.token = USDC;
         $.entry = msg.sender;
-        $.provider = Distribution;
+        $.provider = USD0PP;
         $.maxAPR = 1400; // 14%
         return $.token;
     }
@@ -68,12 +68,12 @@ contract FundUsual is ERC20("Wrapped Usual Fund", "FundUsual"), IFund {
     }
 
     function mint(address to) public payable returns (uint shares, uint value) {
-        uint amountIn = IERC20(USDC).balanceOf(address(this));
+        uint amountIn = IERC20($.token).balanceOf(address(this));
         if (amountIn > 0) {
             // 将USDC兑换USD0++
             _USDC2USD0PP(address(this), amountIn);
         }
-        uint balance = IERC20(USD0PP).balanceOf(address(this));
+        uint balance = IERC20($.provider).balanceOf(address(this));
         value = balance - $.value;
         shares = _mintShares(to, value);
         $.value = balance;
@@ -88,31 +88,51 @@ contract FundUsual is ERC20("Wrapped Usual Fund", "FundUsual"), IFund {
             owner == msg.sender || $.entry == msg.sender,
             "caller is not owner"
         );
-        uint amountIn = (shares * $.value) / totalSupply();
-        $.value -= amountIn;
+        uint value = (shares * $.value) / totalSupply();
+        $.value -= value;
         _burn(owner, shares);
-        costs[to] -= amountIn; //减少用户持仓成本
-        emit Burn(owner, shares, amountIn);
-        // 将<amountIn>个USD0++兑换成USDC发给<to>地址
-        amount = _USD0PP2USDC(to, amountIn);
+        costs[to] -= shares; //减少用户持仓成本
+        emit Burn(owner, shares, value);
+        // 将<value>个USD0++兑换成USDC发给<to>地址
+        amount = _USD0PP2USDC(to, value);
     }
 
     function updateValue(
         bytes calldata data
-    ) external payable onlyEntry returns (uint value) {
-        // claimOffChainDistribution(address account,uint256 amount,bytes32[] proof)
-        (bool success, ) = $.provider.call(data);
-        if (success) {
-            // 从<data>参数中取得amountIn
-            uint amountIn;
-            assembly {
-                // 104 = 68+4+32: data offset + selector offset + address offset
-                amountIn := calldataload(104)
+    ) external payable returns (uint value) {
+        // Updated every 24H
+        if (block.timestamp - lastUpdateValueTime > 86000) {
+            if (data.length > 128) {
+                if (bytes4(data[0:4]) == 0xed99f469) {
+                    // claimOffChainDistribution(address account,uint256 amount,bytes32[] proof)
+                    (bool success, ) = Distribution.call(data);
+                    if (success) {
+                        //  将usual兑换为USD0++，直接从参数中提取兑换数量
+                        uint amount = uint(bytes32(data[36:68]));
+                        _USUAL2USD0PP(address(this), amount);
+                    }
+                }
             }
-            //  将usual兑换为USD0++
-            _USUAL2USD0PP(address(this), amountIn);
         }
-        value = IERC20(USD0PP).balanceOf(address(this));
+        value = IERC20($.provider).balanceOf(address(this));
+        _updateValue(value);
+    }
+
+    function _mintShares(
+        address to,
+        uint value
+    ) internal returns (uint shares) {
+        if ($.value == 0) {
+            shares = value;
+        } else {
+            shares = (value * totalSupply()) / $.value;
+        }
+        _mint(to, shares);
+        costs[to] += value; //更新用户持仓成本
+        emit Mint(to, shares, value);
+    }
+
+    function _updateValue(uint value) internal {
         if ($.value < value) {
             // 截取超过MaxAPR的收益，当作平台收益
             uint maxAddValue = (($.value *
@@ -123,24 +143,14 @@ contract FundUsual is ERC20("Wrapped Usual Fund", "FundUsual"), IFund {
                 10000;
             if (maxAddValue > value - $.value) {
                 _mintShares(
-                    IEntry(payable($.entry)).feeTo(),
+                    IEntry($.entry).feeTo(),
                     maxAddValue - (value - $.value)
                 );
             }
+            lastUpdateValueTime = block.timestamp;
         }
         $.value = value;
-        lastUpdateValueTime = block.timestamp;
         emit UpdateValue(value, block.timestamp);
-    }
-
-    function _mintShares(
-        address to,
-        uint value
-    ) internal returns (uint shares) {
-        shares = (value * totalSupply()) / $.value;
-        _mint(to, shares);
-        costs[to] += value; //更新用户持仓成本
-        emit Mint(to, shares, value);
     }
 
     // 兑换流动池地址，除了兑换方式，USD0可1：1质押获得USD0++，可查兑换价格是否大于1来选择兑换或者质押

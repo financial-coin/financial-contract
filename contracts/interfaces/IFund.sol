@@ -58,6 +58,6 @@ interface IFund is IERC20 {
 
     // 更新基金总价值
     function updateValue(
-        bytes memory data
+        bytes calldata data
     ) external payable returns (uint value);
 }
