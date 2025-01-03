@@ -89,7 +89,7 @@ interface IEntry {
         uint amountOut,
         uint deadline,
         bytes calldata signature
-    ) external;
+    ) external payable;
 
     // 使用用户签名批准花费指定代币兑换ETH，先执行对应代币的permit
     // 如果前端报价太低，后端有权拒绝
@@ -102,7 +102,7 @@ interface IEntry {
         uint deadline,
         bytes calldata signature,
         bytes calldata permit
-    ) external;
+    ) external payable;
 
     // 查询EIP712签名域分隔符
     function DOMAIN_SEPARATOR() external view returns (bytes32);

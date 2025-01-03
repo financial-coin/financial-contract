@@ -120,10 +120,8 @@ contract FundTest is ERC20("Fund For Test", "FundTest"), IFund {
             // 截取超过MaxAPR的收益，当作平台收益
             uint maxAddValue = (($.value *
                 $.maxAPR *
-                (block.timestamp - lastUpdateValueTime)) / 365) *
-                24 *
-                3600 *
-                10000;
+                (block.timestamp - lastUpdateValueTime)) /
+                (365 * 24 * 3600 * 10000));
             if (maxAddValue > value - $.value) {
                 _mintShares(
                     IEntry($.entry).feeTo(),

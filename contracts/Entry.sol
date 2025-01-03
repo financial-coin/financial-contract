@@ -144,7 +144,7 @@ contract Entry is
         uint amountOut,
         uint deadline,
         bytes calldata signature
-    ) external onlyOwner {
+    ) external payable onlyOwner {
         _swapETH(owner, token, amountIn, amountOut, deadline, signature);
     }
 
@@ -156,7 +156,7 @@ contract Entry is
         uint deadline,
         bytes calldata signature,
         bytes calldata permit
-    ) external onlyOwner {
+    ) external payable onlyOwner {
         _execPermit(token, owner, amountIn, deadline, permit);
         _swapETH(owner, token, amountIn, amountOut, deadline, signature);
     }
