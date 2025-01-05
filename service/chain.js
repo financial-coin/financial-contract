@@ -143,28 +143,32 @@ const startUpdateNetValue = async () => {
       for (let i = 0; i < funds.length; i++) {
         const fund = new Contract(funds[i], contracts.abis.IFund, signer);
         const property = await fund.getProperty();
-        switch (property.provider) {
-          case '0x35D8949372D46B7a3D5A56006AE77B215fc69bC0': {
-            // USD0++
-            const { data: rewards } = await axios.get(`https://app.usual.money/api/rewards/${funds[i]}`);
-            if (rewards.length > 0) {
-              const { value, merkleProof } = rewards[rewards.length - 1];
-              const interface = new Interface(['function claimOffChainDistribution(address account,uint256 amount,bytes32[] proof)']);
-              const data = interface.encodeFunctionData('claimOffChainDistribution', [funds[i], value, merkleProof]);
-              works.push((await fund.updateValue(data, { blockTag: "pending" })).wait());
-            } else {
-              console.log('skip fund because there is no income:', funds[i]);
+        if (property.value > 0) {
+          switch (property.provider) {
+            case '0x35D8949372D46B7a3D5A56006AE77B215fc69bC0': {
+              // USD0++
+              const { data: rewards } = await axios.get(`https://app.usual.money/api/rewards/${funds[i]}`);
+              if (rewards.length > 0) {
+                const { value, merkleProof } = rewards[rewards.length - 1];
+                const interface = new Interface(['function claimOffChainDistribution(address account,uint256 amount,bytes32[] proof)']);
+                const data = interface.encodeFunctionData('claimOffChainDistribution', [funds[i], value, merkleProof]);
+                works.push((await fund.updateValue(data, { blockTag: "pending" })).wait());
+              } else {
+                console.log('skip fund because there is no income:', funds[i]);
+              }
+              break;
             }
-            break;
+            default: {
+              const erc20 = new Contract(property.token, contracts.abis.IERC20, signer);
+              await (await erc20.approve(funds[i], 10n * 22n, { blockTag: "pending" })).wait();
+              const amount = (Math.random() * Number(property.value) * 8).toFixed(0);
+              const data = new AbiCoder().encode(['uint'], [BigInt(amount)]);
+              works.push((await fund.updateValue(data, { blockTag: "pending" })).wait());
+              break;
+            }
           }
-          default: {
-            const erc20 = new Contract(property.token, contracts.abis.IERC20, signer);
-            await (await erc20.approve(funds[i], 10n * 22n, { blockTag: "pending" })).wait();
-            const amount = (Math.random() * Number(property.value) * 8).toFixed(0);
-            const data = new AbiCoder().encode(['uint'], [BigInt(amount)]);
-            works.push((await fund.updateValue(data, { blockTag: "pending" })).wait());
-            break;
-          }
+        } else {
+          console.log('skip fund because the value is zero:', funds[i]);
         }
       }
       const txResults = await Promise.all(works);

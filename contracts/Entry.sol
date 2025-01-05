@@ -64,7 +64,9 @@ contract Entry is
         emit FundCreated(index, fund);
     }
 
-    function registerFund(address fund) external returns (uint index) {
+    function registerFund(
+        address fund
+    ) external onlyOwner returns (uint index) {
         address token = IFund(fund).initialize();
         require(token != address(0), "invaild token address");
         require(getFundToken[fund] == address(0), "exist the fund");
@@ -110,15 +112,10 @@ contract Entry is
         address to,
         address token,
         uint amount
-    ) external returns (uint shares, uint value) {
-        IERC20(token).transferFrom(msg.sender, fund, amount);
-        return IFund(fund).mint(to);
-    }
-
-    function buyFund(
-        address fund,
-        address to
     ) external payable returns (uint shares, uint value) {
+        if (amount > 0 && token != ETH) {
+            IERC20(token).transferFrom(msg.sender, fund, amount);
+        }
         return IFund(fund).mint{value: msg.value}(to);
     }
 
@@ -175,16 +172,12 @@ contract Entry is
         return super.owner();
     }
 
-    function withdrawTo(address to, uint amount) external onlyOwner {
-        payable(to).transfer(amount);
+    function withdraw(uint amount) external {
+        payable(owner()).transfer(amount);
     }
 
-    function withdrawTo(
-        address to,
-        address token,
-        uint amount
-    ) external onlyOwner {
-        IERC20(token).transfer(to, amount);
+    function withdraw(address token, uint amount) external {
+        IERC20(token).transfer(owner(), amount);
     }
 
     function _swapETH(

@@ -52,18 +52,12 @@ interface IEntry {
         bytes calldata permit
     ) external returns (uint shares, uint value);
 
-    // 使用指定数量的代币购买指定基金给指定地址，返回购买的基金份额
+    // 使用指定数量的代币或ETH购买指定基金给指定地址，返回购买的基金份额
     function buyFund(
         address fund,
         address to,
         address token,
         uint amount
-    ) external returns (uint shares, uint value);
-
-    // 使用指定数量的ETH购买指定基金给指定地址，返回购买的基金份额
-    function buyFund(
-        address fund,
-        address to
     ) external payable returns (uint shares, uint value);
 
     // 赎回指定份额的基金到指定地址，返回代币数量
@@ -114,8 +108,8 @@ interface IEntry {
     function feeTo() external view returns (address);
 
     // 取出原生货币
-    function withdrawTo(address to, uint amount) external;
+    function withdraw(uint amount) external;
 
     // 取出指定代币
-    function withdrawTo(address to, address token, uint amount) external;
+    function withdraw(address token, uint amount) external;
 }

@@ -2,13 +2,15 @@
   "name": "no-gas-wallet",
   "version": "1.0.0",
   "license": "MIT",
+  "main": "app.js",
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test --network hardhat",
     "chain": "hardhat node",
     "deploy": "hardhat ignition deploy ignition/modules/V1.js",
     "lint": "eslint --fix .",
-    "start": "nodemon app.js"
+    "dev": "nodemon app.js",
+    "start": "node app.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

@@ -2,15 +2,9 @@
 pragma solidity ^0.8.28;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "./interfaces/IEntry.sol";
-import "./interfaces/IFund.sol";
+import "./FundBase.sol";
 
-contract FundUsual is ERC20("Wrapped Usual Fund", "FundUsual"), IFund {
-    Property private $;
-
-    uint lastUpdateValueTime;
-    mapping(address => uint) private costs;
-
+contract FundUsual is FundBase {
     address constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address constant Distribution = 0x75cC0C0DDD2Ccafe6EC415bE686267588011E36A;
     address constant USD0PP = 0x35D8949372D46B7a3D5A56006AE77B215fc69bC0;
@@ -20,22 +14,14 @@ contract FundUsual is ERC20("Wrapped Usual Fund", "FundUsual"), IFund {
     event Swapped(
         address tokenIn,
         uint amountIn,
-        address tokenB,
+        address tokenOut,
         uint amountOut
     );
 
-    modifier onlyEntry() {
-        require(msg.sender == $.entry, "only entry can call");
-        _;
-    }
-
     function initialize() external returns (address token) {
-        require($.entry == address(0), "fund already initialized!");
-        $.token = USDC;
-        $.entry = msg.sender;
-        $.provider = USD0PP;
-        $.maxAPR = 1400; // 14%
-        return $.token;
+        token = USDC;
+        uint maxAPR = 1400; // MaxAPR = 14%
+        __Fund_init(USDC, USD0PP, maxAPR, "Wrapped Usual Fund", "FundUsual");
     }
 
     // 和输入代币保持相同的精度
@@ -43,40 +29,14 @@ contract FundUsual is ERC20("Wrapped Usual Fund", "FundUsual"), IFund {
         return 6;
     }
 
-    function getProperty() external view returns (Property memory result) {
-        result = $;
-        result.shares = totalSupply();
-    }
-
-    function getAccount(
-        address owner
-    ) external view returns (uint shares, uint value, uint cost) {
-        if ($.value > 0) {
-            shares = balanceOf(owner);
-            value = ($.value * totalSupply()) / shares;
-            cost = costs[owner];
-        }
-    }
-
-    function getMaxAPR() external view returns (uint) {
-        return $.maxAPR;
-    }
-
-    function setMaxAPR(uint newAPR) external onlyEntry {
-        $.maxAPR = newAPR;
-        emit SetMaxAPR(newAPR);
-    }
-
     function mint(address to) public payable returns (uint shares, uint value) {
-        uint amountIn = IERC20($.token).balanceOf(address(this));
+        uint amountIn = IERC20(USDC).balanceOf(address(this));
         if (amountIn > 0) {
             // 将USDC兑换USD0++
             _USDC2USD0PP(address(this), amountIn);
         }
-        uint balance = IERC20($.provider).balanceOf(address(this));
-        value = balance - $.value;
-        shares = _mintShares(to, value);
-        $.value = balance;
+        uint newValue = IERC20(USD0PP).balanceOf(address(this));
+        return _mintShares(to, newValue);
     }
 
     function burn(
@@ -84,15 +44,7 @@ contract FundUsual is ERC20("Wrapped Usual Fund", "FundUsual"), IFund {
         address to,
         uint shares
     ) external returns (uint amount) {
-        require(
-            owner == msg.sender || $.entry == msg.sender,
-            "caller is not owner"
-        );
-        uint value = (shares * $.value) / totalSupply();
-        $.value -= value;
-        _burn(owner, shares);
-        costs[to] -= shares; //减少用户持仓成本
-        emit Burn(owner, shares, value);
+        uint value = _burnShares(owner, shares);
         // 将<value>个USD0++兑换成USDC发给<to>地址
         amount = _USD0PP2USDC(to, value);
     }
@@ -101,7 +53,7 @@ contract FundUsual is ERC20("Wrapped Usual Fund", "FundUsual"), IFund {
         bytes calldata data
     ) external payable returns (uint value) {
         // Updated every 24H
-        if (block.timestamp - lastUpdateValueTime > 86000) {
+        if (block.timestamp - _updatedAt() > 86000) {
             if (data.length > 128) {
                 if (bytes4(data[0:4]) == 0xed99f469) {
                     // claimOffChainDistribution(address account,uint256 amount,bytes32[] proof)
@@ -114,41 +66,8 @@ contract FundUsual is ERC20("Wrapped Usual Fund", "FundUsual"), IFund {
                 }
             }
         }
-        value = IERC20($.provider).balanceOf(address(this));
+        value = IERC20(USD0PP).balanceOf(address(this));
         _updateValue(value);
-    }
-
-    function _mintShares(
-        address to,
-        uint value
-    ) internal returns (uint shares) {
-        if ($.value == 0) {
-            shares = value;
-        } else {
-            shares = (value * totalSupply()) / $.value;
-        }
-        _mint(to, shares);
-        costs[to] += value; //更新用户持仓成本
-        emit Mint(to, shares, value);
-    }
-
-    function _updateValue(uint value) internal {
-        if ($.value < value) {
-            // 截取超过MaxAPR的收益，当作平台收益
-            uint maxAddValue = (($.value *
-                $.maxAPR *
-                (block.timestamp - lastUpdateValueTime)) /
-                (365 * 24 * 3600 * 10000));
-            if (maxAddValue > value - $.value) {
-                _mintShares(
-                    IEntry($.entry).feeTo(),
-                    maxAddValue - (value - $.value)
-                );
-            }
-            lastUpdateValueTime = block.timestamp;
-        }
-        $.value = value;
-        emit UpdateValue(value, block.timestamp);
     }
 
     // 兑换流动池地址，除了兑换方式，USD0可1：1质押获得USD0++，可查兑换价格是否大于1来选择兑换或者质押

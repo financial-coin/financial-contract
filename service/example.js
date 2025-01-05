@@ -18,7 +18,7 @@ const entry = new Contract(Address['V1#Entry'], Entry.abi, signer);
 const fund = new Contract(Address['V1#FundTest'], Fund.abi, signer);
 
 (async () => {
-    const [tokenAddr] = await fund.getProperty();
+    const { token: tokenAddr } = await fund.getProperty();
     const token = new Contract(tokenAddr, new Interface(["function approve(address spender, uint256 value)"]), signer);
 
     {

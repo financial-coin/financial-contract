@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // 原生代币占位表示
-address constant EthToken = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+address constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
 interface IFund is IERC20 {
     // 设置基金最大年化利率事件
@@ -18,13 +18,15 @@ interface IFund is IERC20 {
 
     // 基金属性
     struct Property {
+        address entry; // 入口合约地址
         address token; // 支付或赎回的代币，如果值为<EthToken>，则表示原生代币
+        address provider; // 供给合约地址，金融产品合约
         uint value; // 基金总价值，基金净值 = 基金总价值/基金总份额
         uint shares; // 基金总份额，用户购买时增加，赎回时减少
-        address entry; // 入口合约地址
-        address provider; // 供给合约地址，提供收益的合约
         uint maxAPR; // 最大年化利率，单位万分一，超过部分归平台所有
         // uint feeRate; // 买卖手续费率
+        uint createdAt; // 创建时间，unix时间戳
+        uint updatedAt; // 更新时间，unix时间戳，更新净值时才会更新这个值
     }
 
     // 初始化基金，入口合约进行调用，返回基金支付代币
