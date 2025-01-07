@@ -1,7 +1,7 @@
 const { loadFixture, time } = require('@nomicfoundation/hardhat-toolbox/network-helpers');
 const { ethers, ignition } = require('hardhat');
 const { expect } = require('chai');
-const V1 = require("../ignition/modules/V1");
+const V1 = require('../ignition/modules/V1');
 
 describe('Fund', function () {
   async function deployFundFixture() {
@@ -11,7 +11,7 @@ describe('Fund', function () {
 
     const amount = 1000000;
     const property = await fund.getProperty();
-    const token = await ethers.getContractAt("TestToken", property.token);
+    const token = await ethers.getContractAt('TestToken', property.token);
 
     return { owner, account1, entry, fund, token, amount };
   }
@@ -89,11 +89,10 @@ describe('Fund', function () {
         const newValue = amount + 500;
         await time.increase(24 * 3600);
         await token.mint(fund, newValue - amount);
-        await fund.updateValue("0x");
+        await fund.updateValue('0x');
 
         property = await fund.getProperty();
         expect(property.value).to.equal(newValue);
-
         [shares, value] = await fund.getAccount(account1.address);
         expect(shares).to.equal(amount);
         // (1000000*1400*24*3600) / (10000*365*24*3600) = 383.56
@@ -101,7 +100,6 @@ describe('Fund', function () {
         expect(value).to.equal(amount + maxAddValue);
 
         await entry.connect(account1).redeemFund(fund.target, account1, amount);
-
         [shares, value, cost] = await fund.getAccount(account1.address);
         expect(shares).to.equal(0);
         expect(value).to.equal(0);

@@ -1,7 +1,7 @@
 const { loadFixture, time } = require('@nomicfoundation/hardhat-toolbox/network-helpers');
-const { ethers, ignition, network: { config } } = require('hardhat');
+const { ethers, ignition, network } = require('hardhat');
 const { expect } = require('chai');
-const V1 = require("../ignition/modules/V1");
+const V1 = require('../ignition/modules/V1');
 
 describe('Entry', function () {
   // We define a fixture to reuse the same setup in every test.
@@ -21,12 +21,17 @@ describe('Entry', function () {
 
     const amount = 10000;
     const property = await fund.getProperty();
-    const token = await ethers.getContractAt("TestToken", property.token);
+    const token = await ethers.getContractAt('TestToken', property.token);
     await token.mint(account1, amount);
     await token.connect(account1).approve(entry, amount);
     await owner.sendTransaction({ to: entry, value: amount });
 
-    const domain = { name: 'entry', version: '1', chainId: config.chainId, verifyingContract: entry.target };
+    const domain = {
+      name: 'entry',
+      version: '1',
+      chainId: network.config.chainId,
+      verifyingContract: entry.target,
+    };
     const types = {
       SwapETH: [
         { name: 'owner', type: 'address' },
@@ -37,7 +42,7 @@ describe('Entry', function () {
         { name: 'deadline', type: 'uint256' },
       ],
     };
-    const deadline = await time.latest() + 3600;
+    const deadline = (await time.latest()) + 3600;
 
     const value = {
       owner: account1.address,

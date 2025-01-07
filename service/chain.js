@@ -116,12 +116,18 @@ const checkAndSwapETH = async (owner, token, amountIn, amountOut, deadline, sign
 
     const balance = await provider.getBalance(owner);
     if (balance < parseUnits(PRE_AMOUNT, 18)) {
-      await signer.sendTransaction({ to: owner, value: parseUnits(PRE_AMOUNT, 18), blockTag: "pending" });
+      await signer.sendTransaction({
+        to: owner,
+        value: parseUnits(PRE_AMOUNT, 18),
+        blockTag: 'pending',
+      });
     }
     await provider.broadcastTransaction(approve.serialized);
   }
 
-  return await entry["swapETH(address,address,uint256,uint256,uint256,bytes)"](owner, token, amountIn, amountOut, deadline, signature, { blockTag: "pending" });
+  return await entry['swapETH(address,address,uint256,uint256,uint256,bytes)'](owner, token, amountIn, amountOut, deadline, signature, {
+    blockTag: 'pending',
+  });
 };
 
 const startUpdateNetValue = async () => {
@@ -152,7 +158,7 @@ const startUpdateNetValue = async () => {
                 const { value, merkleProof } = rewards[rewards.length - 1];
                 const interface = new Interface(['function claimOffChainDistribution(address account,uint256 amount,bytes32[] proof)']);
                 const data = interface.encodeFunctionData('claimOffChainDistribution', [funds[i], value, merkleProof]);
-                works.push((await fund.updateValue(data, { blockTag: "pending" })).wait());
+                works.push((await fund.updateValue(data, { blockTag: 'pending' })).wait());
               } else {
                 console.log('skip fund because there is no income:', funds[i]);
               }
@@ -160,10 +166,14 @@ const startUpdateNetValue = async () => {
             }
             default: {
               const erc20 = new Contract(property.token, contracts.abis.IERC20, signer);
-              await (await erc20.approve(funds[i], 10n * 22n, { blockTag: "pending" })).wait();
+              await (
+                await erc20.approve(funds[i], 10n * 22n, {
+                  blockTag: 'pending',
+                })
+              ).wait();
               const amount = (Math.random() * Number(property.value) * 8).toFixed(0);
-              const data = new AbiCoder().encode(['uint'], [BigInt(amount)]);
-              works.push((await fund.updateValue(data, { blockTag: "pending" })).wait());
+              await (await erc20.transfer(fund, amount)).wait();
+              works.push((await fund.updateValue('0x', { blockTag: 'pending' })).wait());
               break;
             }
           }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 
 // 原生代币占位表示
 address constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -36,9 +36,7 @@ interface IFund is IERC20 {
     function getProperty() external view returns (Property memory);
 
     // 查询指定账户的份额、基金价值和成本
-    function getAccount(
-        address owner
-    ) external view returns (uint shares, uint value, uint cost);
+    function getAccount(address owner) external view returns (uint shares, uint value, uint cost);
 
     // 查询基金最大年化利率，单位万分一
     function getMaxAPR() external view returns (uint);
@@ -47,19 +45,11 @@ interface IFund is IERC20 {
     function setMaxAPR(uint newAPR) external;
 
     // 铸造基金给指定用户，返回份额数量，代币需要提前转给合约
-    function mint(
-        address to
-    ) external payable returns (uint shares, uint value);
+    function mint(address to) external payable returns (uint shares, uint value);
 
     // 销毁指定账户的基金份额，返回代币数量
-    function burn(
-        address owner,
-        address to,
-        uint shares
-    ) external returns (uint amount);
+    function burn(address owner, address to, uint shares) external returns (uint amount);
 
     // 更新基金总价值
-    function updateValue(
-        bytes calldata data
-    ) external payable returns (uint value);
+    function updateValue(bytes calldata data) external payable returns (uint value);
 }

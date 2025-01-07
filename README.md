@@ -1,13 +1,11 @@
 # 基金理财平台
 
-
 ## 环境依赖
 
 1. 安装nodejs(版本：>=18, <=22)
 2. 安装依赖：`yarn`
 
-*使用yarn代替默认的npm，可以替换成等价的npm命令*
-
+_使用yarn代替默认的npm，可以替换成等价的npm命令_
 
 ## 基本命令
 
@@ -16,14 +14,12 @@
 3. 测试合约：`yarn test`
 4. 部署合约到本地节点：`yarn deploy`
 
-*可以使用`--help`查看更多帮助选项，例如：yarn deploy --help*
-
+_可以使用`--help`查看更多帮助选项，例如：yarn deploy --help_
 
 ## 合约调用
 
 1. 部署好的合约地址：`ignition/deployments/chain-<链id>/deployed_addresses.json`文件中
 2. 部署好的合约ABI：`ignition/deployments/chain-<链id>/artifacts`目录下
-
 
 ## 合约架构
 
@@ -42,6 +38,7 @@
 5. 事件：创建理财产品
 
 ### 理财合约
+
 抽象封装实际的金融产品，提供统一的买入卖出接口，简化用户理财资产管理；用户买入后会获得代币凭证，代表用户持有对应的理财资产，卖出后销毁代币凭证；可将代币凭证转给其他地址
 
 1. 接口：买入理财资产（入口合约或用户可调用）

@@ -1,21 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import "./interfaces/IEntry.sol";
-import "./interfaces/IFund.sol";
+import {ERC20Upgradeable} from '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
+import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
+import {IEntry} from './interfaces/IEntry.sol';
+import {IFund} from './interfaces/IFund.sol';
 
 abstract contract FundBase is ERC20Upgradeable, IFund {
     Property private $;
     mapping(address => uint) private costs; //简单跟踪账户持仓成本，每次赎回会置为0
 
-    function __Fund_init(
-        address token,
-        address provider,
-        uint maxAPR,
-        string memory name,
-        string memory symbol
-    ) internal initializer {
+    function __Fund_init(address token, address provider, uint maxAPR, string memory name, string memory symbol) internal initializer {
         $.entry = msg.sender;
         $.token = token;
         $.provider = provider;
@@ -27,7 +22,7 @@ abstract contract FundBase is ERC20Upgradeable, IFund {
     }
 
     modifier onlyEntry() {
-        require(msg.sender == $.entry, "only entry can call");
+        require(msg.sender == $.entry, 'only entry can call');
         _;
     }
 
@@ -36,9 +31,7 @@ abstract contract FundBase is ERC20Upgradeable, IFund {
         result.shares = totalSupply();
     }
 
-    function getAccount(
-        address owner
-    ) external view returns (uint shares, uint value, uint cost) {
+    function getAccount(address owner) external view returns (uint shares, uint value, uint cost) {
         if ($.value > 0) {
             shares = balanceOf(owner);
             value = (shares * $.value) / totalSupply();
@@ -53,6 +46,26 @@ abstract contract FundBase is ERC20Upgradeable, IFund {
     function setMaxAPR(uint newAPR) external onlyEntry {
         $.maxAPR = newAPR;
         emit SetMaxAPR(newAPR);
+    }
+
+    // 保持9位精度
+    function decimals() public pure virtual override returns (uint8) {
+        return 9;
+    }
+
+    function mint(address to) public payable virtual returns (uint shares, uint value) {
+        value = IERC20($.token).balanceOf(address(this));
+        return _mintShares(to, value);
+    }
+
+    function burn(address owner, address to, uint shares) external virtual returns (uint value) {
+        value = _burnShares(owner, shares);
+        IERC20($.token).transfer(to, value);
+    }
+
+    function updateValue(bytes calldata) external payable virtual returns (uint value) {
+        value = IERC20($.token).balanceOf(address(this));
+        _updateValue(value);
     }
 
     function _entry() internal view returns (address) {
@@ -72,10 +85,7 @@ abstract contract FundBase is ERC20Upgradeable, IFund {
     }
 
     // newValue 为新的基金总价值
-    function _mintShares(
-        address to,
-        uint newValue
-    ) internal returns (uint shares, uint value) {
+    function _mintShares(address to, uint newValue) internal returns (uint shares, uint value) {
         value = newValue - $.value;
         if ($.value == 0) {
             shares = value;
@@ -89,14 +99,8 @@ abstract contract FundBase is ERC20Upgradeable, IFund {
         emit Mint(to, shares, value);
     }
 
-    function _burnShares(
-        address owner,
-        uint shares
-    ) internal returns (uint value) {
-        require(
-            owner == msg.sender || $.entry == msg.sender,
-            "caller is not owner or entry"
-        );
+    function _burnShares(address owner, uint shares) internal returns (uint value) {
+        require(owner == msg.sender || $.entry == msg.sender, 'caller is not owner or entry');
         value = (shares * $.value) / totalSupply();
         _burn(owner, shares);
         costs[owner] = 0; //重置用户持仓成本
@@ -108,9 +112,7 @@ abstract contract FundBase is ERC20Upgradeable, IFund {
         assert(newValue >= $.value);
         // 截取超过MaxAPR的收益，当作平台收益
         unchecked {
-            uint maxAddValue = (($.value *
-                $.maxAPR *
-                (block.timestamp - $.updatedAt)) / (365 * 24 * 3600 * 10000));
+            uint maxAddValue = (($.value * $.maxAPR * (block.timestamp - $.updatedAt)) / (365 * 24 * 3600 * 10000));
             if (maxAddValue < newValue - $.value) {
                 $.value += maxAddValue;
                 _mintShares(IEntry($.entry).feeTo(), newValue);

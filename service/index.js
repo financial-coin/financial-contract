@@ -19,7 +19,7 @@ router.post('/swap', async (ctx) => {
       getBigInt(amountOut),
       getBigInt(deadline),
       Signature.from(signature).serialized,
-      Transaction.from(approveTranscation)
+      Transaction.from(approveTranscation),
     );
   } catch (error) {
     ctx.throw(400, error);
